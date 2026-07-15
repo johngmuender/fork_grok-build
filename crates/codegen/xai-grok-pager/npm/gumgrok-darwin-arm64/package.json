@@ -1,0 +1,19 @@
+{
+    "name": "@xai-official/gumgrok-darwin-arm64",
+    "version": "0.2.0-dev",
+    "description": "darwin-arm64 binary for @xai-official/gumgrok. Do not install directly; install @xai-official/gumgrok instead.",
+    "license": "Apache-2.0",
+    "files": [
+        "bin/",
+        "THIRD_PARTY_NOTICES.md"
+    ],
+    "os": [
+        "darwin"
+    ],
+    "cpu": [
+        "arm64"
+    ],
+    "publishConfig": {
+        "access": "public"
+    }
+}

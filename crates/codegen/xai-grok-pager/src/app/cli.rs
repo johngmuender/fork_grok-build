@@ -754,7 +754,7 @@ impl PagerArgs {
             .map(std::path::Path::new)
             .and_then(|p| p.file_name())
             .and_then(|n| n.to_str())
-            .filter(|n| *n == "grok" || *n == "agent")
+            .filter(|n| *n == "grok" || *n == "agent" || *n == "gumgrok")
             .unwrap_or("grok")
             .to_owned();
         let mut args = Self::parse_from(std::iter::once(bin_name).chain(std::env::args().skip(1)));
