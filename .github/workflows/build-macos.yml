@@ -1,0 +1,58 @@
+name: Build macOS (gumgrok)
+
+# Builds the `gumgrok` release binary natively on an Apple-Silicon macOS runner.
+# The host target on `macos-14` is aarch64-apple-darwin, so this is a native build
+# (no cross-compilation) — the reliable way to produce the macOS binary. The
+# resulting artifact can feed the npm darwin-arm64 package: point
+# GROK_DARWIN_ARM64 at target/release/gumgrok when running
+# crates/codegen/xai-grok-pager/npm/gumgrok/scripts/assemble-platform-packages.js.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/build-gumgrok-binary-kzzs41
+    tags:
+      - 'v*'
+
+jobs:
+  build-macos-arm64:
+    name: gumgrok (aarch64-apple-darwin)
+    runs-on: macos-14  # Apple Silicon runner -> native aarch64-apple-darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install protoc
+        run: |
+          brew install protobuf
+          # Set $PROTOC so xai-proto-build uses this protoc directly and does not
+          # depend on the in-repo bin/protoc dotslash launcher. Resolution order in
+          # xai-proto-build/src/find_protoc.rs is: $PROTOC -> walk-up bin/protoc -> PATH.
+          echo "PROTOC=$(brew --prefix)/bin/protoc" >> "$GITHUB_ENV"
+
+      - name: Set up Rust toolchain
+        # Installs the toolchain pinned by rust-toolchain.toml (1.92.0) plus the
+        # host target (aarch64-apple-darwin) automatically.
+        run: |
+          rustup show
+          rustc --version --verbose
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build -p xai-grok-pager-bin --release
+
+      - name: Verify binary
+        run: |
+          file target/release/gumgrok
+          ./target/release/gumgrok --version
+          ./target/release/gumgrok --help | head -n 3
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gumgrok-aarch64-apple-darwin
+          path: target/release/gumgrok
+          if-no-files-found: error
