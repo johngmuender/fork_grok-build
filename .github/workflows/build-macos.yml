@@ -15,6 +15,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write  # allow the job to commit the compressed binary back to the branch
+
 jobs:
   build-macos-arm64:
     name: gumgrok (aarch64-apple-darwin)
@@ -56,3 +59,30 @@ jobs:
           name: gumgrok-aarch64-apple-darwin
           path: target/release/gumgrok
           if-no-files-found: error
+
+      # Compress the binary and commit it to the branch, mirroring the Linux
+      # dist/gumgrok.xz. Done on the runner because the raw/compressed binary can
+      # only be produced here. The commit carries [skip ci] so it does not
+      # re-trigger this workflow. Runs only for branch pushes / manual dispatch.
+      - name: Commit compressed macOS binary to the branch
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          TARGET_BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          brew install xz
+          mkdir -p dist
+          cp target/release/gumgrok /tmp/gumgrok-macos
+          # Strip debug symbols to match the stripped Linux dist artifact.
+          strip -S /tmp/gumgrok-macos || strip /tmp/gumgrok-macos || true
+          xz -9 -T0 -c /tmp/gumgrok-macos > dist/gumgrok-aarch64-apple-darwin.xz
+          ls -la dist/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist/gumgrok-aarch64-apple-darwin.xz
+          if git diff --cached --quiet; then
+            echo "No change in dist/gumgrok-aarch64-apple-darwin.xz; nothing to commit."
+            exit 0
+          fi
+          git commit -m "Add compiled gumgrok macOS (aarch64) binary (xz-compressed) [skip ci]"
+          git push origin "HEAD:${TARGET_BRANCH}"
